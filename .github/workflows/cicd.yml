@@ -2,9 +2,9 @@ name: CI/CD Pipeline for a Node.js Application
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
   pull_request:
-    branches: [dev]
+    branches: [main]
 
 jobs:
   test:
