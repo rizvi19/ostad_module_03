@@ -6,3 +6,6 @@ export default {
   },
   plugins: [],
 };
+
+// This is comment
+
