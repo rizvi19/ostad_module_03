@@ -1,0 +1,95 @@
+name: Node.js CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+
+  test:
+    name: Test Node.js Application
+
+    runs-on: [self-hosted, linux, module3-ost]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' 
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests and capture output
+        id: run_tests
+        run: |
+          echo "Running application tests..."
+          npm test > test-results.txt
+          echo "Test execution finished."
+          echo "Test output file content:"
+          cat test-results.txt
+
+      - name: Upload test results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-artifact
+          path: test-results.txt
+          retention-days: 7
+
+
+  deploy:
+    name: Deploy Node.js Application
+    needs: test 
+    
+    runs-on: [self-hosted, linux, module3-ost]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js on self-hosted runner
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' 
+
+      - name: Download test results artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-artifact
+          path: ./downloaded-artifacts
+
+      - name: Display downloaded artifact content
+        run: |
+          echo "Displaying content of downloaded test results:"
+          cat ./downloaded-artifacts/test-results.txt
+
+      - name: Install PM2 (if not already installed) and Deploy Application
+        run: |
+          # Check if sudo is needed for npm global install.
+          # If your runner user can install global packages without sudo, remove 'sudo'.
+          if ! command -v pm2 &> /dev/null
+          then
+              echo "PM2 not found, installing..."
+              sudo npm install pm2 -g
+          else
+              echo "PM2 is already installed."
+          fi
+
+          echo "Installing application dependencies..."
+          npm install --production
+
+          echo "Deploying/Restarting application with PM2..."
+          APP_NAME="my-node-app" # Consistent app name for PM2
+
+          # Using pm2 startOrRestart to simplify logic
+          # Ensure app.js is in the root of your repo or adjust path like src/app.js
+          pm2 startOrRestart app.js --name $APP_NAME
+
+          echo "Application deployed. Current PM2 status:"
+          pm2 list
